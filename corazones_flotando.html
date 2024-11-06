@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corazones Flotando</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            position: absolute;
+        }
+        .message {
+            position: absolute;
+            color: #B00450;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- Canvas para los corazones -->
+    <canvas id="canvas"></canvas>
+    <!-- Mensaje en el centro -->
+    <div class="message">Te quieroo<3</div>
+
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // Ajustar el tamaño del canvas
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Cargar la imagen de Lana del Rey
+        const lanaImage = new Image();
+        lanaImage.src = "lana.jpg";  // Asegúrate de que esta imagen esté en el mismo directorio
+
+        // Evitar dibujo hasta que la imagen esté completamente cargada
+        let isImageLoaded = false;
+        lanaImage.onload = () => {
+            isImageLoaded = true;  // Marcar como cargada una vez que se complete la carga
+        };
+
+        // Crear corazones flotantes
+        const hearts = [];
+        const explosions = [];
+        let draggedHeart = null; // Corazón que está siendo arrastrado
+
+        const numHearts = 100;
+        for (let i = 0; i < numHearts; i++) {
+            hearts.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 10 + 3,
+                color: `rgba(255, ${Math.floor(Math.random() * 100 + 50)}, ${Math.floor(Math.random() * 100 + 150)}, 0.6)`,
+                speed: Math.random() * 1 + 0.5,
+                xSpeed: Math.random() * 1 - 0.5, // Movimiento aleatorio en el eje X
+                ySpeed: Math.random() * 1 - 0.5, // Movimiento aleatorio en el eje Y
+            });
+        }
+
+        // Función para dibujar el corazón
+        function createHeart(x, y, size, color) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.bezierCurveTo(x - size / 2, y - size / 2, x - size, y + size / 3, x, y + size);
+            ctx.bezierCurveTo(x + size, y + size / 3, x + size / 2, y - size / 2, x, y);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+
+        // Función para dibujar la explosión de imágenes de Lana del Rey
+        function drawExplosion(explosion) {
+            if (!isImageLoaded) return; // Solo dibuja si la imagen está cargada
+
+            ctx.save();
+            ctx.globalAlpha = explosion.opacity; // Usar opacidad de cada imagen para desvanecimiento
+            ctx.drawImage(lanaImage, explosion.x, explosion.y, explosion.size, explosion.size); // Dibujar la imagen
+            ctx.restore();
+        }
+
+        // Función para animar
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Corazones flotando con movimiento aleatorio
+            hearts.forEach(heart => {
+                createHeart(heart.x, heart.y, heart.size, heart.color);
+                heart.y -= heart.speed;
+                heart.x += heart.xSpeed; // Movimiento aleatorio en el eje X
+                heart.y += heart.ySpeed; // Movimiento aleatorio en el eje Y
+
+                // Rebote de los corazones cuando llegan a los bordes
+                if (heart.x < 0 || heart.x > canvas.width) heart.xSpeed = -heart.xSpeed;
+                if (heart.y < 0 || heart.y > canvas.height) heart.ySpeed = -heart.ySpeed;
+
+                if (heart.y < -20) {
+                    heart.y = canvas.height + 20;
+                    heart.x = Math.random() * canvas.width;
+                    heart.size = Math.random() * 10 + 3;
+                    heart.color = `rgba(255, ${Math.floor(Math.random() * 100 + 50)}, ${Math.floor(Math.random() * 100 + 150)}, 0.6)`; // Cambiar de color
+                }
+            });
+
+            // Si hay un corazón arrastrado, actualizar su posición
+            if (draggedHeart) {
+                draggedHeart.x = mouseX;
+                draggedHeart.y = mouseY;
+                createHeart(draggedHeart.x, draggedHeart.y, draggedHeart.size, draggedHeart.color);
+            }
+
+            // Animar explosiones
+            explosions.forEach((explosion, index) => {
+                explosion.size += 0.5; // Aumentar tamaño en cada cuadro
+                explosion.opacity -= 0.02; // Reducir opacidad para desvanecimiento
+
+                drawExplosion(explosion); // Dibujar la imagen de la explosión
+
+                // Eliminar explosión si opacidad es 0
+                if (explosion.opacity <= 0) {
+                    explosions.splice(index, 1);
+                }
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // Crear una nueva explosión en cada toque
+        function createExplosion(x, y) {
+            for (let i = 0; i < 10; i++) { // Genera varias imágenes en un toque
+                explosions.push({
+                    x: x + Math.random() * 20 - 10,
+                    y: y + Math.random() * 20 - 10,
+                    size: Math.random() * 30 + 10, // Tamaño aleatorio inicial
+                    opacity: 1 // Opacidad inicial completa
+                });
+            }
+        }
+
+        // Detectar si un clic o toque está dentro de un corazón
+        function isHeartClicked(x, y, heart) {
+            return x >= heart.x - heart.size && x <= heart.x + heart.size && y >= heart.y - heart.size && y <= heart.y + heart.size;
+        }
+
+        // Evento para manejar el clic o toque
+        let mouseX, mouseY;
+        canvas.addEventListener("mousemove", (event) => {
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+        });
+
+        canvas.addEventListener("click", (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            // Detectar si un corazón ha sido tocado
+            for (let i = 0; i < hearts.length; i++) {
+                const heart = hearts[i];
+                if (isHeartClicked(x, y, heart)) {
+                    draggedHeart = heart;  // Agarrar el corazón
+                    createExplosion(x, y); // Crear la explosión con la imagen de Lana
+                    break;
+                }
+            }
+        });
+
+        canvas.addEventListener("mouseup", () => {
+            draggedHeart = null; // Soltar el corazón
+        });
+
+        canvas.addEventListener("touchstart", (event) => {
+            event.preventDefault(); // Previene scroll accidental en dispositivos táctiles
+            const rect = canvas.getBoundingClientRect();
+            const x = event.touches[0].clientX - rect.left;
+            const y = event.touches[0].clientY - rect.top;
+
+            // Detectar si un corazón ha sido tocado
+            for (let i = 0; i < hearts.length; i++) {
+                const heart = hearts[i];
+                if (isHeartClicked(x, y, heart)) {
+                    draggedHeart = heart;  // Agarrar el corazón
+                    createExplosion(x, y); // Crear la explosión con la imagen de Lana
+                    break;
+                }
+            }
+        });
+
+        canvas.addEventListener("touchend", () => {
+            draggedHeart = null; // Soltar el corazón
+        });
+
+        animate();
+
+        // Ajustar el tamaño del canvas si la ventana cambia de tamaño
+        window.addEventListener("resize", () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
